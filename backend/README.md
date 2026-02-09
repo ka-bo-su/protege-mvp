@@ -12,6 +12,30 @@ uv sync
 uv run uvicorn app.main:app --reload --port 8000
 ```
 
+Makefile shortcut (from repo root):
+```bash
+make dev-backend
+```
+
+## Database
+- Default DB: SQLite file at `backend/app.db`
+- Override with `DATABASE_URL` (example):
+	- `DATABASE_URL=sqlite:////absolute/path/to/app.db`
+
+## Migrations (Alembic)
+```bash
+uv run alembic revision -m "init"
+uv run alembic upgrade head
+```
+
+Makefile shortcuts (from repo root):
+```bash
+make db-revision MSG="init"
+make db-upgrade
+```
+
+`alembic_version` will be created in the SQLite DB file above.
+
 ## Healthcheck
 ```bash
 curl http://localhost:8000/health

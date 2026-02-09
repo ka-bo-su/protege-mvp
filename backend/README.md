@@ -24,8 +24,9 @@ make dev-backend
 
 ## Migrations (Alembic)
 ```bash
-uv run alembic revision -m "init"
+uv run alembic revision --autogenerate -m "core schema"
 uv run alembic upgrade head
+sqlite3 app.db ".tables"
 ```
 
 Makefile shortcuts (from repo root):

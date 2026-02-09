@@ -1,4 +1,4 @@
-.PHONY: dev dev-backend dev-frontend
+.PHONY: dev dev-backend dev-frontend db-upgrade db-revision
 
 dev:
 	$(MAKE) -j 2 dev-backend dev-frontend
@@ -10,3 +10,9 @@ dev-backend:
 dev-frontend:
 	cd frontend && npm install
 	cd frontend && npm run dev -- --host
+
+db-upgrade:
+	cd backend && uv run alembic upgrade head
+
+db-revision:
+	cd backend && uv run alembic revision -m "$(MSG)"

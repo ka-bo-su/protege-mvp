@@ -1,7 +1,10 @@
-import { Alert, Box, Button, Divider, Stack, Typography } from "@mui/material";
+import { Box, Divider, Stack, Typography } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
+import RequestErrorBanner from "../common/RequestErrorBanner";
+import RetryCancelBar from "../common/RetryCancelBar";
+import useRequestController from "../../hooks/useRequestController";
 import { sendPhase1Turn, sendPhase3Turn } from "../../services/chatApi";
-import type { ChatTurn } from "../../types/chat";
+import type { ChatTurn, ChatTurnResponse } from "../../types/chat";
 import ChatInput from "./ChatInput";
 import ChatMessageList from "./ChatMessageList";
 
@@ -10,16 +13,16 @@ type ChatPanelProps = {
     sessionId: string;
 };
 
-type FailedRequest = {
+type ChatActionType = "chat_turn";
+
+type ChatPayload = {
     message: string;
 };
 
 export default function ChatPanel({ phase, sessionId }: ChatPanelProps) {
     const [messages, setMessages] = useState<ChatTurn[]>([]);
     const [draftText, setDraftText] = useState("");
-    const [isSending, setIsSending] = useState(false);
-    const [error, setError] = useState<string | undefined>(undefined);
-    const [lastFailedRequest, setLastFailedRequest] = useState<FailedRequest | undefined>(undefined);
+    const requestController = useRequestController<ChatActionType, ChatPayload>();
     const listRef = useRef<HTMLDivElement | null>(null);
 
     useEffect(() => {
@@ -28,61 +31,66 @@ export default function ChatPanel({ phase, sessionId }: ChatPanelProps) {
         }
     }, [messages]);
 
-    const performSend = async (message: string, { addUser }: { addUser: boolean }) => {
-        if (isSending) {
-            return;
-        }
-
-        if (addUser) {
-            setMessages((prev) => [
-                ...prev,
-                {
-                    id: `user-${Date.now()}`,
-                    role: "user",
-                    content: message,
-                },
-            ]);
-        }
-
-        setIsSending(true);
-        setError(undefined);
-
-        try {
-            const response = phase === 1 ? await sendPhase1Turn(sessionId, message) : await sendPhase3Turn(sessionId, message);
-            setMessages((prev) => [
-                ...prev,
-                {
-                    id: `assistant-${response.turn_index}-${Date.now()}`,
-                    role: "assistant",
-                    content: response.assistant_message,
-                },
-            ]);
-            setDraftText("");
-            setLastFailedRequest(undefined);
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "送信に失敗しました。");
-            setLastFailedRequest({ message });
-        } finally {
-            setIsSending(false);
-        }
-    };
-
     const handleSend = async () => {
-        if (isSending || draftText.trim().length === 0) {
+        if (requestController.state.status === "loading" || draftText.trim().length === 0) {
             return;
         }
 
         const message = draftText.trim();
-        await performSend(message, { addUser: true });
+
+        setMessages((prev) => [
+            ...prev,
+            {
+                id: `user-${Date.now()}`,
+                role: "user",
+                content: message,
+            },
+        ]);
+
+        const result = await requestController.run<ChatTurnResponse>({
+            actionType: "chat_turn",
+            payload: { message },
+            requestFn: (payload) =>
+                phase === 1 ? sendPhase1Turn(sessionId, payload.message) : sendPhase3Turn(sessionId, payload.message),
+        });
+
+        if (result.status === "success") {
+            setMessages((prev) => [
+                ...prev,
+                {
+                    id: `assistant-${result.data.turn_index}-${Date.now()}`,
+                    role: "assistant",
+                    content: result.data.assistant_message,
+                },
+            ]);
+            setDraftText("");
+        }
     };
 
     const handleRetry = async () => {
-        if (!lastFailedRequest || isSending) {
+        if (requestController.state.status === "loading") {
             return;
         }
 
-        await performSend(lastFailedRequest.message, { addUser: false });
+        const result = await requestController.retry<ChatTurnResponse>();
+        if (result.status === "success") {
+            setMessages((prev) => [
+                ...prev,
+                {
+                    id: `assistant-${result.data.turn_index}-${Date.now()}`,
+                    role: "assistant",
+                    content: result.data.assistant_message,
+                },
+            ]);
+            setDraftText("");
+        }
     };
+
+    const handleCancel = () => {
+        requestController.cancel();
+    };
+
+    const isSending = requestController.state.status === "loading";
 
     return (
         <Stack spacing={2}>
@@ -110,18 +118,12 @@ export default function ChatPanel({ phase, sessionId }: ChatPanelProps) {
                 <ChatMessageList messages={messages} />
             </Box>
             <ChatInput value={draftText} onChange={setDraftText} onSend={handleSend} disabled={isSending} isSending={isSending} />
-            {error && (
-                <Alert
-                    severity="error"
-                    action={
-                        <Button color="inherit" size="small" onClick={handleRetry} disabled={!lastFailedRequest || isSending}>
-                            Retry
-                        </Button>
-                    }
-                >
-                    {error}
-                </Alert>
-            )}
+            <RetryCancelBar
+                status={requestController.state.status}
+                onRetry={handleRetry}
+                onCancel={handleCancel}
+            />
+            <RequestErrorBanner message={requestController.state.error} />
         </Stack>
     );
 }

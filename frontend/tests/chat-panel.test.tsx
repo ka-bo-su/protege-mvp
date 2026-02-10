@@ -1,3 +1,4 @@
+import "@testing-library/jest-dom/vitest";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -52,7 +53,8 @@ describe("ChatPanel", () => {
         await userEvent.type(input, "retry test");
         await userEvent.click(sendButton);
 
-        expect(await screen.findByText(/500/i)).toBeInTheDocument();
+        const errorMessages = await screen.findAllByText("エラーが発生しました。再試行してください。");
+        expect(errorMessages.length).toBeGreaterThan(0);
         expect(input).toHaveValue("retry test");
         expect(screen.getByText("retry test", { selector: "p" })).toBeInTheDocument();
     });
@@ -75,5 +77,34 @@ describe("ChatPanel", () => {
 
         expect(await screen.findByText("OK")).toBeInTheDocument();
         expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+    });
+
+    it("cancels in-flight request and ignores late response", async () => {
+        let resolveFetch: (value: Response) => void;
+        const fetchPromise = new Promise<Response>((resolve) => {
+            resolveFetch = resolve;
+        });
+
+        vi.spyOn(globalThis, "fetch").mockReturnValue(fetchPromise);
+
+        render(<ChatPanel phase={1} sessionId="session-1" />);
+
+        const input = screen.getByRole("textbox");
+        const sendButton = screen.getByRole("button", { name: /send/i });
+
+        await userEvent.type(input, "cancel test");
+        await userEvent.click(sendButton);
+
+        const cancelButton = await screen.findByRole("button", { name: /cancel/i });
+        await userEvent.click(cancelButton);
+
+        expect(input).not.toBeDisabled();
+        expect(sendButton).not.toBeDisabled();
+
+        resolveFetch!(createMockResponse({ session_id: "session-1", assistant_message: "OK", turn_index: 3 }));
+
+        await waitFor(() => {
+            expect(screen.queryByText("OK")).not.toBeInTheDocument();
+        });
     });
 });

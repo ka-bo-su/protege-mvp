@@ -4,7 +4,7 @@ from datetime import date, datetime, timezone
 from typing import Any
 from uuid import UUID
 
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from app.models.session import Session as SessionModel
 
@@ -99,3 +99,13 @@ def update_report_final(
     session.add(existing)
     session.flush()
     return existing
+
+
+def list_phase3_sessions(session: Session, user_id: int) -> list[SessionModel]:
+    statement = (
+        select(SessionModel)
+        .where(SessionModel.user_id == user_id)
+        .where(SessionModel.phase == 3)
+        .order_by(SessionModel.session_date.desc(), SessionModel.created_at.desc())
+    )
+    return list(session.exec(statement).all())

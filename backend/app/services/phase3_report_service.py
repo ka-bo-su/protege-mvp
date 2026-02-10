@@ -13,6 +13,7 @@ from app.llm.factory import get_llm_client
 from app.prompts.prompt_loader import load_prompt, resolve_prompt_version
 from app.repositories import goals_repository, session_repository
 from app.services.phase3_service import DEFAULT_GOAL_TEXT
+from app.utils.edit_metrics import compute_edit_metrics
 from app.utils.prompt_hash import generate_prompt_hash
 
 ALWAYS_ON_GOAL_PLACEHOLDER = "{{ALWAYS_ON_GOAL}}"
@@ -46,6 +47,10 @@ class SessionUpdateError(Phase3ReportError):
 
 class PromptLoadError(Phase3ReportError):
     """Raised when the report prompt cannot be loaded."""
+
+
+class InvalidReportFinalError(Phase3ReportError):
+    """Raised when report_final is invalid."""
 
 
 def _normalize_log_json(log_json: Any) -> list[dict[str, Any]]:
@@ -110,6 +115,14 @@ def _merge_report_metadata(
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "model_name": model_name,
     }
+    return meta_data
+
+
+def _merge_report_final_metadata(
+    existing: dict[str, Any] | None,
+) -> dict[str, Any]:
+    meta_data = dict(existing or {})
+    meta_data["report_final_saved_at"] = datetime.now(timezone.utc).isoformat()
     return meta_data
 
 
@@ -179,3 +192,39 @@ async def generate_phase3_report_draft(
         raise SessionUpdateError("Failed to update session report_draft") from exc
 
     return report_draft
+
+
+def save_phase3_report_final(
+    session: Session,
+    session_id: UUID,
+    report_final: str,
+) -> dict[str, int | float]:
+    existing = session_repository.get_session_by_id(session, session_id)
+    if existing is None:
+        raise SessionNotFoundError("session not found")
+    if existing.phase != 3:
+        raise PhaseMismatchError("phase mismatch")
+
+    if report_final is None or not report_final.strip():
+        raise InvalidReportFinalError("report_final must not be empty")
+
+    metrics = compute_edit_metrics(existing.report_draft, report_final)
+    meta_data = _merge_report_final_metadata(existing.meta_data)
+
+    try:
+        updated = session_repository.update_report_final(
+            session=session,
+            session_id=existing.id,
+            report_final=report_final,
+            edit_metrics=metrics,
+            meta_data=meta_data,
+        )
+        if updated is None:
+            raise SessionNotFoundError("session not found")
+        session.commit()
+        session.refresh(updated)
+    except SQLAlchemyError as exc:
+        session.rollback()
+        raise SessionUpdateError("Failed to update session report_final") from exc
+
+    return metrics

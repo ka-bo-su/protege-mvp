@@ -12,6 +12,10 @@ from app.schemas.phase3_chat_schema import (
     Phase3ChatTurnRequest,
     Phase3ChatTurnResponse,
 )
+from app.schemas.phase3_report_schema import (
+    Phase3ReportFinalSaveRequest,
+    Phase3ReportFinalSaveResponse,
+)
 from app.schemas.phase3_schema import Phase3SessionCreateRequest, Phase3SessionCreateResponse
 from app.services import phase3_chat_service, phase3_report_service, phase3_service
 
@@ -104,3 +108,34 @@ async def generate_phase3_report_draft(
         "report_draft": report_draft,
         "saved": True,
     }
+
+
+@router.put(
+    "/session/{session_id}/report/final",
+    response_model=Phase3ReportFinalSaveResponse,
+)
+def save_phase3_report_final(
+    session_id: UUID,
+    payload: Phase3ReportFinalSaveRequest,
+    session: Session = Depends(get_session),
+) -> Phase3ReportFinalSaveResponse:
+    try:
+        metrics = phase3_report_service.save_phase3_report_final(
+            session=session,
+            session_id=session_id,
+            report_final=payload.report_final,
+        )
+    except phase3_report_service.InvalidReportFinalError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except phase3_report_service.SessionNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except phase3_report_service.PhaseMismatchError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except phase3_report_service.SessionUpdateError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    return Phase3ReportFinalSaveResponse(
+        session_id=session_id,
+        saved=True,
+        edit_metrics=metrics,
+    )

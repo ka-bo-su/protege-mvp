@@ -1,0 +1,14 @@
+{
+  "user_id": 1,
+  "completion": {
+    "total_phase3_sessions": 0,
+    "completed_sessions": 0,
+    "completion_rate": 0.0
+  },
+  "retention": {
+    "active_days": 0,
+    "total_sessions": 0,
+    "sessions_per_day": 0.0,
+    "date_list": []
+  }
+}

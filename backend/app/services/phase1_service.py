@@ -6,10 +6,12 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session
 
 from app.config.llm_config import LLMConfig
-from app.prompts.prompt_loader import load_prompt, resolve_prompt_version
+from app.prompts.prompt_loader import resolve_prompt_version
 from app.repositories import session_repository
 from app.services.llm_metadata_builder import build_llm_metadata
 from app.utils.prompt_hash import generate_prompt_hash
+from app.utils.prompt_builder import build_system_prompt
+from app.safety.safety_rules import SAFETY_VERSION
 
 
 class SessionCreateError(RuntimeError):
@@ -19,7 +21,7 @@ class SessionCreateError(RuntimeError):
 def start_phase1_session(session: Session, user_id: int):
     """Create a Phase1 session with initial log and metadata."""
 
-    system_prompt = load_prompt("phase1")
+    system_prompt = build_system_prompt("phase1")
     prompt_hash = generate_prompt_hash(system_prompt)
     prompt_version = resolve_prompt_version("phase1")
 
@@ -36,6 +38,8 @@ def start_phase1_session(session: Session, user_id: int):
         extra={
             "prompt_version": prompt_version,
             "prompt_hash": prompt_hash,
+            "safety_version": SAFETY_VERSION,
+            "safety_triggered": False,
         },
     )
 

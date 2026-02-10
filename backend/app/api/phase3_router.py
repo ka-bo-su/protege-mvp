@@ -55,7 +55,7 @@ async def add_phase3_chat_turn(
     session: Session = Depends(get_session),
 ) -> Phase3ChatTurnResponse:
     try:
-        assistant_message, turn_index = await phase3_chat_service.append_phase3_turn(
+        assistant_message, turn_index, emergency = await phase3_chat_service.append_phase3_turn(
             session=session,
             session_id=session_id,
             message=payload.message,
@@ -77,6 +77,7 @@ async def add_phase3_chat_turn(
         session_id=session_id,
         assistant_message=assistant_message,
         turn_index=turn_index,
+        emergency=emergency,
     )
 
 

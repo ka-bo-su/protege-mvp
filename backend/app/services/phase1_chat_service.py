@@ -50,7 +50,7 @@ async def append_phase1_turn(
     session: Session,
     session_id: UUID,
     message: str,
-) -> tuple[str, int]:
+) -> tuple[str, int, bool]:
     cleaned = message.strip() if message is not None else ""
     if not cleaned:
         raise InvalidMessageError("message must not be empty")
@@ -69,6 +69,7 @@ async def append_phase1_turn(
         meta_data = dict(existing.meta_data or {})
         meta_data.setdefault("safety_version", SAFETY_VERSION)
         meta_data["safety_triggered"] = True
+        meta_data["safety_reason"] = "high_risk_keyword"
 
         try:
             updated = session_repository.update_session(
@@ -86,7 +87,7 @@ async def append_phase1_turn(
             raise SessionUpdateError("Failed to update session log") from exc
 
         turn_index = len(updated_log) - 1
-        return ESCALATION_RESPONSE, turn_index
+        return ESCALATION_RESPONSE, turn_index, True
 
     system_prompt = build_system_prompt("phase1")
     llm_client = get_llm_client(LLMConfig())
@@ -115,4 +116,4 @@ async def append_phase1_turn(
         raise SessionUpdateError("Failed to update session log") from exc
 
     turn_index = len(updated_log) - 1
-    return assistant_response, turn_index
+    return assistant_response, turn_index, False

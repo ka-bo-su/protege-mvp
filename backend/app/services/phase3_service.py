@@ -10,6 +10,8 @@ from app.prompts.prompt_loader import load_prompt, resolve_prompt_version
 from app.repositories import goals_repository, session_repository
 from app.services.llm_metadata_builder import build_llm_metadata
 from app.utils.prompt_hash import generate_prompt_hash
+from app.utils.prompt_builder import prepend_safety_guardrails
+from app.safety.safety_rules import SAFETY_VERSION
 
 ALWAYS_ON_GOAL_PLACEHOLDER = "{{ALWAYS_ON_GOAL}}"
 DEFAULT_GOAL_TEXT = "（未設定）"
@@ -38,6 +40,7 @@ def start_phase3_session(session: Session, user_id: int):
     goal_text = active_goal.content if active_goal is not None else DEFAULT_GOAL_TEXT
 
     injected_prompt = _inject_goal(base_prompt, goal_text)
+    injected_prompt = prepend_safety_guardrails(injected_prompt)
     prompt_hash = generate_prompt_hash(injected_prompt)
 
     log_json = [
@@ -53,6 +56,8 @@ def start_phase3_session(session: Session, user_id: int):
         extra={
             "prompt_version": prompt_version,
             "prompt_hash": prompt_hash,
+            "safety_version": SAFETY_VERSION,
+            "safety_triggered": False,
         },
     )
 

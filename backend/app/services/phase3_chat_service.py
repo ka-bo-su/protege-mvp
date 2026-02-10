@@ -9,6 +9,8 @@ from sqlmodel import Session
 from app.config.llm_config import LLMConfig
 from app.llm.factory import get_llm_client
 from app.repositories import session_repository
+from app.safety.safety_detector import detect_high_risk
+from app.safety.safety_rules import ESCALATION_RESPONSE, SAFETY_VERSION
 
 
 class Phase3ChatError(RuntimeError):
@@ -80,6 +82,32 @@ async def append_phase3_turn(
     system_prompt = _extract_system_prompt(updated_log)
     if system_prompt is None:
         raise InvalidSessionLogError("invalid session log: missing system prompt")
+
+    if detect_high_risk(cleaned):
+        updated_log.append({"role": "user", "content": cleaned})
+        updated_log.append({"role": "assistant", "content": ESCALATION_RESPONSE})
+
+        meta_data = dict(existing.meta_data or {})
+        meta_data.setdefault("safety_version", SAFETY_VERSION)
+        meta_data["safety_triggered"] = True
+
+        try:
+            updated = session_repository.update_session(
+                session=session,
+                session_id=existing.id,
+                log_json=updated_log,
+                meta_data=meta_data,
+            )
+            if updated is None:
+                raise SessionNotFoundError("session not found")
+            session.commit()
+            session.refresh(updated)
+        except SQLAlchemyError as exc:
+            session.rollback()
+            raise SessionUpdateError("Failed to update session log") from exc
+
+        turn_index = len(updated_log) - 1
+        return ESCALATION_RESPONSE, turn_index
 
     llm_client = get_llm_client(LLMConfig())
     try:

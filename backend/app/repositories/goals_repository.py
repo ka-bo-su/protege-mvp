@@ -8,6 +8,16 @@ from sqlmodel import Session, select
 from app.models.goal import Goal
 
 
+def get_active_goal(session: Session, user_id: int) -> Goal | None:
+    statement = (
+        select(Goal)
+        .where(Goal.user_id == user_id)
+        .where(Goal.is_active.is_(True))
+        .limit(1)
+    )
+    return session.exec(statement).first()
+
+
 def get_max_goal_version(session: Session, user_id: int) -> int | None:
     statement = select(sa.func.max(Goal.version)).where(Goal.user_id == user_id)
     result: Any = session.exec(statement).first()

@@ -29,6 +29,26 @@ def create_phase1_session(
     return new_session
 
 
+def create_phase3_session(
+    session: Session,
+    user_id: int,
+    session_date: date,
+    log_json: list[dict[str, Any]],
+    meta_data: dict[str, Any],
+) -> SessionModel:
+    new_session = SessionModel(
+        user_id=user_id,
+        phase=3,
+        session_date=session_date,
+        log_json=log_json,
+        meta_data=meta_data,
+        created_at=datetime.now(timezone.utc),
+    )
+    session.add(new_session)
+    session.flush()
+    return new_session
+
+
 def get_session_by_id(session: Session, session_id: UUID) -> SessionModel | None:
     return session.get(SessionModel, session_id)
 

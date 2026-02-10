@@ -1,13 +1,13 @@
 const DEFAULT_BASE_URL = "http://localhost:8000";
 
-const baseUrl = import.meta.env.VITE_API_BASE_URL ?? DEFAULT_BASE_URL;
+export const baseUrl = import.meta.env.VITE_API_BASE_URL ?? DEFAULT_BASE_URL;
 
 type ApiErrorInfo = {
     status: number;
     message: string;
 };
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+export async function request<T>(path: string, init?: RequestInit): Promise<T> {
     const response = await fetch(`${baseUrl}${path}`, {
         headers: {
             "Content-Type": "application/json",

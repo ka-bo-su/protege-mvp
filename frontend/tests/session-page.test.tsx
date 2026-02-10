@@ -4,8 +4,8 @@ import { ReactNode } from "react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import SessionsPage from "../src/pages/SessionsPage";
-import Phase1Page from "../src/pages/Phase1Page";
-import Phase3Page from "../src/pages/Phase3Page";
+import Phase1SessionPage from "../src/pages/Phase1SessionPage";
+import Phase3SessionPage from "../src/pages/Phase3SessionPage";
 
 const baseUrl = "http://localhost:8000";
 
@@ -20,8 +20,8 @@ const renderWithRouter = (ui: ReactNode, initialPath = "/sessions") =>
         <MemoryRouter initialEntries={[initialPath]}>
             <Routes>
                 <Route path="/sessions" element={ui} />
-                <Route path="/phase1/session/:id" element={<Phase1Page />} />
-                <Route path="/phase3/session/:id" element={<Phase3Page />} />
+                <Route path="/phase1/session/:sessionId" element={<Phase1SessionPage />} />
+                <Route path="/phase3/session/:sessionId" element={<Phase3SessionPage />} />
             </Routes>
         </MemoryRouter>
     );
@@ -97,7 +97,7 @@ describe("SessionsPage", () => {
         await userEvent.click(screen.getByLabelText("Phase3 Reflection"));
         await userEvent.click(screen.getByRole("button", { name: "Start" }));
 
-        expect(await screen.findByText("Phase 3: Daily Review")).toBeInTheDocument();
+        expect(await screen.findByText("Phase 3 Chat")).toBeInTheDocument();
     });
 
     it("shows a snackbar on API error", async () => {

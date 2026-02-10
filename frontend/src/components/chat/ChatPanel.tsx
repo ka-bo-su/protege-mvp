@@ -61,6 +61,7 @@ export default function ChatPanel({ phase, sessionId }: ChatPanelProps) {
                     id: `assistant-${result.data.turn_index}-${Date.now()}`,
                     role: "assistant",
                     content: result.data.assistant_message,
+                    emergency: result.data.emergency,
                 },
             ]);
             setDraftText("");
@@ -80,6 +81,7 @@ export default function ChatPanel({ phase, sessionId }: ChatPanelProps) {
                     id: `assistant-${result.data.turn_index}-${Date.now()}`,
                     role: "assistant",
                     content: result.data.assistant_message,
+                    emergency: result.data.emergency,
                 },
             ]);
             setDraftText("");

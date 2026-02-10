@@ -13,3 +13,4 @@ class Phase3ChatTurnResponse(BaseModel):
     session_id: UUID
     assistant_message: str
     turn_index: int
+    emergency: bool = False

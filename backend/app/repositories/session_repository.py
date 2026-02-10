@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from typing import Any
+from uuid import UUID
 
 from sqlmodel import Session
 
@@ -21,8 +22,26 @@ def create_phase1_session(
         session_date=session_date,
         log_json=log_json,
         meta_data=meta_data,
-        created_at=datetime.utcnow(),
+    created_at=datetime.now(timezone.utc),
     )
     session.add(new_session)
     session.flush()
     return new_session
+
+
+def get_session_by_id(session: Session, session_id: UUID) -> SessionModel | None:
+    return session.get(SessionModel, session_id)
+
+
+def update_session_log(
+    session: Session,
+    session_id: UUID,
+    log_json: list[dict[str, Any]],
+) -> SessionModel | None:
+    existing = session.get(SessionModel, session_id)
+    if existing is None:
+        return None
+    existing.log_json = log_json
+    session.add(existing)
+    session.flush()
+    return existing

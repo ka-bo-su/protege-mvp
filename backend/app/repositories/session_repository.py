@@ -81,3 +81,21 @@ def update_session(session: Session, session_id: UUID, **fields: Any) -> Session
     session.add(existing)
     session.flush()
     return existing
+
+
+def update_report_final(
+    session: Session,
+    session_id: UUID,
+    report_final: str,
+    edit_metrics: dict[str, Any],
+    meta_data: dict[str, Any],
+) -> SessionModel | None:
+    existing = session.get(SessionModel, session_id)
+    if existing is None:
+        return None
+    existing.report_final = report_final
+    existing.edit_metrics = edit_metrics
+    existing.meta_data = meta_data
+    session.add(existing)
+    session.flush()
+    return existing

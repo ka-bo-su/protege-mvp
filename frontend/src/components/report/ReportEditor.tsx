@@ -5,9 +5,10 @@ type ReportEditorProps = {
     onChange: (value: string) => void;
     onSave: () => void;
     isSaving: boolean;
+    disabled?: boolean;
 };
 
-export default function ReportEditor({ value, onChange, onSave, isSaving }: ReportEditorProps) {
+export default function ReportEditor({ value, onChange, onSave, isSaving, disabled = false }: ReportEditorProps) {
     return (
         <Box>
             <Typography variant="subtitle1" fontWeight={600} gutterBottom>
@@ -20,12 +21,13 @@ export default function ReportEditor({ value, onChange, onSave, isSaving }: Repo
                 value={value}
                 onChange={(event) => onChange(event.target.value)}
                 placeholder="最終レポートを編集してください"
+                disabled={disabled}
             />
             <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 2 }}>
                 <Button
                     variant="contained"
                     onClick={onSave}
-                    disabled={isSaving}
+                    disabled={disabled}
                     startIcon={isSaving ? <CircularProgress size={16} /> : undefined}
                 >
                     Save Final

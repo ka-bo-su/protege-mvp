@@ -1,7 +1,10 @@
 import { Alert, Box, Button, CircularProgress, Divider, Paper, Snackbar, Stack, Typography } from "@mui/material";
 import { useState } from "react";
+import RequestErrorBanner from "../common/RequestErrorBanner";
+import RetryCancelBar from "../common/RetryCancelBar";
+import useRequestController from "../../hooks/useRequestController";
 import { generateReportDraft, saveReportFinal } from "../../services/reportApi";
-import type { EditMetrics } from "../../types/report";
+import type { EditMetrics, ReportDraftResponse, ReportFinalResponse } from "../../types/report";
 import EditMetricsCard from "./EditMetricsCard";
 import ReportEditor from "./ReportEditor";
 
@@ -9,70 +12,95 @@ type ReportPanelProps = {
     sessionId: string;
 };
 
-type LastAction = "draft" | "save";
+type ReportActionType = "draft_generate" | "final_save";
+
+type DraftPayload = {
+    sessionId: string;
+};
+
+type FinalPayload = {
+    sessionId: string;
+    reportFinal: string;
+};
+
+type ReportPayload = DraftPayload | FinalPayload;
 
 export default function ReportPanel({ sessionId }: ReportPanelProps) {
     const [draftText, setDraftText] = useState<string | undefined>(undefined);
     const [finalText, setFinalText] = useState("");
-    const [isGeneratingDraft, setIsGeneratingDraft] = useState(false);
-    const [isSavingFinal, setIsSavingFinal] = useState(false);
     const [editMetrics, setEditMetrics] = useState<EditMetrics | undefined>(undefined);
-    const [error, setError] = useState<string | undefined>(undefined);
-    const [lastAction, setLastAction] = useState<LastAction | undefined>(undefined);
     const [snackbarOpen, setSnackbarOpen] = useState(false);
+    const requestController = useRequestController<ReportActionType, ReportPayload>();
+
+    const isGeneratingDraft =
+        requestController.state.status === "loading" && requestController.state.actionType === "draft_generate";
+    const isSavingFinal =
+        requestController.state.status === "loading" && requestController.state.actionType === "final_save";
+    const isBusy = requestController.state.status === "loading";
 
     const handleGenerateDraft = async () => {
-        if (isGeneratingDraft) {
+        if (isBusy) {
             return;
         }
 
-        setIsGeneratingDraft(true);
-        setError(undefined);
-        setLastAction(undefined);
+        const result = await requestController.run<ReportDraftResponse>({
+            actionType: "draft_generate",
+            payload: { sessionId },
+            requestFn: (payload) => generateReportDraft(payload.sessionId),
+        });
 
-        try {
-            const response = await generateReportDraft(sessionId);
-            setDraftText(response.report_draft);
+        if (result.status === "success") {
+            setDraftText(result.data.report_draft);
             if (finalText.trim().length === 0) {
-                setFinalText(response.report_draft);
+                setFinalText(result.data.report_draft);
             }
             setEditMetrics(undefined);
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "Draftの生成に失敗しました。");
-            setLastAction("draft");
-        } finally {
-            setIsGeneratingDraft(false);
         }
     };
 
     const handleSaveFinal = async () => {
-        if (isSavingFinal) {
+        if (isBusy) {
             return;
         }
 
-        setIsSavingFinal(true);
-        setError(undefined);
-        setLastAction(undefined);
+        const result = await requestController.run<ReportFinalResponse>({
+            actionType: "final_save",
+            payload: { sessionId, reportFinal: finalText },
+            requestFn: (payload) => saveReportFinal(payload.sessionId, (payload as FinalPayload).reportFinal),
+        });
 
-        try {
-            const response = await saveReportFinal(sessionId, finalText);
-            setEditMetrics(response.edit_metrics);
+        if (result.status === "success") {
+            setEditMetrics(result.data.edit_metrics);
             setSnackbarOpen(true);
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "Finalの保存に失敗しました。");
-            setLastAction("save");
-        } finally {
-            setIsSavingFinal(false);
         }
     };
 
     const handleRetry = async () => {
-        if (lastAction === "draft") {
-            await handleGenerateDraft();
+        if (requestController.state.status === "loading") {
+            return;
         }
-        if (lastAction === "save") {
-            await handleSaveFinal();
+
+        const result = await requestController.retry<ReportDraftResponse | ReportFinalResponse>();
+
+        if (result.status === "success") {
+            if (result.actionType === "draft_generate") {
+                const data = result.data as ReportDraftResponse;
+                setDraftText(data.report_draft);
+                if (finalText.trim().length === 0) {
+                    setFinalText(data.report_draft);
+                }
+                setEditMetrics(undefined);
+                return;
+            }
+
+            const data = result.data as ReportFinalResponse;
+            setEditMetrics(data.edit_metrics);
+            setSnackbarOpen(true);
         }
+    };
+
+    const handleCancel = () => {
+        requestController.cancel();
     };
 
     return (
@@ -89,7 +117,7 @@ export default function ReportPanel({ sessionId }: ReportPanelProps) {
                 <Button
                     variant="outlined"
                     onClick={handleGenerateDraft}
-                    disabled={isGeneratingDraft}
+                    disabled={isBusy}
                     startIcon={isGeneratingDraft ? <CircularProgress size={16} /> : undefined}
                 >
                     Generate Draft
@@ -106,20 +134,16 @@ export default function ReportPanel({ sessionId }: ReportPanelProps) {
                     </Typography>
                 </Paper>
             </Box>
-            <ReportEditor value={finalText} onChange={setFinalText} onSave={handleSaveFinal} isSaving={isSavingFinal} />
+            <ReportEditor
+                value={finalText}
+                onChange={setFinalText}
+                onSave={handleSaveFinal}
+                isSaving={isSavingFinal}
+                disabled={isBusy}
+            />
             {editMetrics && <EditMetricsCard metrics={editMetrics} />}
-            {error && (
-                <Alert
-                    severity="error"
-                    action={
-                        <Button color="inherit" size="small" onClick={handleRetry} disabled={!lastAction}>
-                            Retry
-                        </Button>
-                    }
-                >
-                    {error}
-                </Alert>
-            )}
+            <RetryCancelBar status={requestController.state.status} onRetry={handleRetry} onCancel={handleCancel} />
+            <RequestErrorBanner message={requestController.state.error} />
             <Snackbar
                 open={snackbarOpen}
                 autoHideDuration={3000}

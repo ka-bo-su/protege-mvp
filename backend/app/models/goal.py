@@ -10,10 +10,11 @@ class Goal(SQLModel, table=True):
     __tablename__ = "goals"
     __table_args__ = (
         sa.Index(
-            "ix_goals_user_active",
+            "uq_goals_active_per_user",
             "user_id",
             unique=True,
             sqlite_where=sa.text("is_active = 1"),
+            postgresql_where=sa.text("is_active IS TRUE"),
         ),
     )
 

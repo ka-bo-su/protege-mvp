@@ -13,7 +13,7 @@ from app.schemas.phase3_chat_schema import (
     Phase3ChatTurnResponse,
 )
 from app.schemas.phase3_schema import Phase3SessionCreateRequest, Phase3SessionCreateResponse
-from app.services import phase3_chat_service, phase3_service
+from app.services import phase3_chat_service, phase3_report_service, phase3_service
 
 router = APIRouter(prefix="/api/v1/phase3", tags=["phase3"])
 
@@ -74,3 +74,33 @@ async def add_phase3_chat_turn(
         assistant_message=assistant_message,
         turn_index=turn_index,
     )
+
+
+@router.post("/session/{session_id}/report/draft")
+async def generate_phase3_report_draft(
+    session_id: UUID,
+    session: Session = Depends(get_session),
+) -> dict[str, object]:
+    try:
+        report_draft = await phase3_report_service.generate_phase3_report_draft(
+            session=session,
+            session_id=session_id,
+        )
+    except phase3_report_service.SessionNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except phase3_report_service.PhaseMismatchError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except phase3_report_service.InvalidSessionLogError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except phase3_report_service.PromptLoadError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    except phase3_report_service.LLMGenerateError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    except phase3_report_service.SessionUpdateError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    return {
+        "session_id": str(session_id),
+        "report_draft": report_draft,
+        "saved": True,
+    }

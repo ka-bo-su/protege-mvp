@@ -1,17 +1,5 @@
-import { Alert, Stack } from "@mui/material";
-import { useParams } from "react-router-dom";
-import ChatPanel from "../components/chat/ChatPanel";
+import Phase3WorkspacePage from "./Phase3WorkspacePage";
 
 export default function Phase3SessionPage() {
-    const { sessionId } = useParams();
-
-    if (!sessionId) {
-        return (
-            <Stack spacing={2}>
-                <Alert severity="warning">セッションIDが見つかりませんでした。</Alert>
-            </Stack>
-        );
-    }
-
-    return <ChatPanel phase={3} sessionId={sessionId} />;
+    return <Phase3WorkspacePage />;
 }

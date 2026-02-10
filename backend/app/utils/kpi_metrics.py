@@ -75,3 +75,34 @@ def compute_kpi_summary(user_id: int, sessions: Iterable[Dict[str, Any]]) -> Dic
         "completion": compute_completion(sessions_list),
         "retention": compute_retention(sessions_list),
     }
+
+
+def compute_edit_ratio_summary(ratios: Iterable[float]) -> Dict[str, int | float | None]:
+    values: List[float] = []
+    for ratio in ratios:
+        if ratio is None or isinstance(ratio, bool):
+            continue
+        try:
+            values.append(float(ratio))
+        except (TypeError, ValueError):
+            continue
+
+    values.sort()
+    count = len(values)
+    if count == 0:
+        return {"count": 0, "avg": None, "median": None, "min": None, "max": None}
+
+    avg = sum(values) / count
+    if count % 2 == 1:
+        median = values[count // 2]
+    else:
+        mid = count // 2
+        median = (values[mid - 1] + values[mid]) / 2
+
+    return {
+        "count": int(count),
+        "avg": float(avg),
+        "median": float(median),
+        "min": float(values[0]),
+        "max": float(values[-1]),
+    }

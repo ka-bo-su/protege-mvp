@@ -6,6 +6,7 @@ const navItems = [
     { label: "Sessions", to: "/sessions" },
     { label: "Phase1", to: "/phase1" },
     { label: "Phase3", to: "/phase3" },
+    { label: "Admin KPI", to: "/admin/kpi/edit-ratio" },
 ];
 
 export default function AppShell() {

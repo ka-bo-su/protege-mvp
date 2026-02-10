@@ -32,6 +32,11 @@ def _normalize_version(version: str) -> str:
 def resolve_prompt_version(phase: str, version: str | None = None) -> str:
     registry = PROMPT_REGISTRY.get(phase)
     if registry is None:
+        if phase == "phase3_report":
+            resolved = _normalize_version(version or "v1")
+            if not _VERSION_RE.match(resolved):
+                raise PromptVersionError(f"Invalid version '{resolved}' for phase '{phase}'.")
+            return resolved
         raise PromptVersionError(f"Unknown phase '{phase}'.")
 
     resolved = version if version is not None else registry.get("default")

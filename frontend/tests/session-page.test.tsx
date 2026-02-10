@@ -97,7 +97,7 @@ describe("SessionsPage", () => {
         await userEvent.click(screen.getByLabelText("Phase3 Reflection"));
         await userEvent.click(screen.getByRole("button", { name: "Start" }));
 
-    expect(await screen.findByText("Phase 3 Chat")).toBeInTheDocument();
+        expect(await screen.findByText("Phase 3 Chat")).toBeInTheDocument();
     });
 
     it("shows a snackbar on API error", async () => {

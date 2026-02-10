@@ -52,9 +52,9 @@ describe("ChatPanel", () => {
         await userEvent.type(input, "retry test");
         await userEvent.click(sendButton);
 
-    expect(await screen.findByText(/500/i)).toBeInTheDocument();
-    expect(input).toHaveValue("retry test");
-    expect(screen.getByText("retry test", { selector: "p" })).toBeInTheDocument();
+        expect(await screen.findByText(/500/i)).toBeInTheDocument();
+        expect(input).toHaveValue("retry test");
+        expect(screen.getByText("retry test", { selector: "p" })).toBeInTheDocument();
     });
 
     it("retries the last failed request", async () => {

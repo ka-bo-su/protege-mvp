@@ -12,11 +12,15 @@ from app.schemas.phase1_chat_schema import (
     Phase1ChatTurnRequest,
     Phase1ChatTurnResponse,
 )
+from app.schemas.phase1_goal_schema import (
+    Phase1GoalConfirmRequest,
+    Phase1GoalConfirmResponse,
+)
 from app.schemas.phase1_schema import (
     Phase1SessionCreateRequest,
     Phase1SessionCreateResponse,
 )
-from app.services import phase1_chat_service, phase1_service
+from app.services import phase1_chat_service, phase1_goal_service, phase1_service
 
 router = APIRouter(prefix="/api/v1/phase1", tags=["phase1"])
 
@@ -73,4 +77,38 @@ async def add_phase1_chat_turn(
         session_id=session_id,
         assistant_message=assistant_message,
         turn_index=turn_index,
+    )
+
+
+@router.post("/session/{session_id}/confirm", response_model=Phase1GoalConfirmResponse)
+def confirm_phase1_goal(
+    session_id: UUID,
+    payload: Phase1GoalConfirmRequest,
+    session: Session = Depends(get_session),
+) -> Phase1GoalConfirmResponse:
+    try:
+        goal = phase1_goal_service.confirm_phase1_goal(
+            session=session,
+            session_id=session_id,
+            goal_text=payload.goal_text,
+            mode=payload.mode,
+        )
+    except phase1_goal_service.InvalidGoalTextError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except phase1_goal_service.UnsupportedModeError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except phase1_goal_service.SessionNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except phase1_goal_service.PhaseMismatchError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except phase1_goal_service.GoalActivationConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except phase1_goal_service.GoalConfirmError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    return Phase1GoalConfirmResponse(
+        user_id=goal.user_id,
+        goal_id=goal.id,
+        version=goal.version,
+        is_active=goal.is_active,
     )

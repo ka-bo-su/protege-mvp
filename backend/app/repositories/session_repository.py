@@ -22,7 +22,7 @@ def create_phase1_session(
         session_date=session_date,
         log_json=log_json,
         meta_data=meta_data,
-    created_at=datetime.now(timezone.utc),
+        created_at=datetime.now(timezone.utc),
     )
     session.add(new_session)
     session.flush()
@@ -42,6 +42,22 @@ def update_session_log(
     if existing is None:
         return None
     existing.log_json = log_json
+    session.add(existing)
+    session.flush()
+    return existing
+
+
+def get_session(session: Session, session_id: UUID) -> SessionModel | None:
+    return session.get(SessionModel, session_id)
+
+
+def update_session(session: Session, session_id: UUID, **fields: Any) -> SessionModel | None:
+    existing = session.get(SessionModel, session_id)
+    if existing is None:
+        return None
+    for key, value in fields.items():
+        if hasattr(existing, key):
+            setattr(existing, key, value)
     session.add(existing)
     session.flush()
     return existing
